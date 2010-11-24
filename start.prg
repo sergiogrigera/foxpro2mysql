@@ -5,6 +5,7 @@ SET TALK OFF
 &&
 
 SET CENTURY ON 
+SET CURRENCY TO 
 
 #define UV "'"
 #define ZPUV "`"
@@ -51,16 +52,16 @@ PROCEDURE zpracuj_tab
 *!*	1 Field name - Character
 *!*	2 Field type:
 *!*	C = Character										OK
-*!*	Y = Currency
+*!*	Y = Currency										OK
 *!*	D = Date											OK
 *!*	T = DateTime										OK
-*!*	B = Double
-*!*	F = Float
-*!*	G = General
+*!*	B = Double											OK
+*!*	F = Float											OK
+*!*	G = General											not possible
 *!*	I = Integer											OK
-*!*	L = Logical
+*!*	L = Logical											OK
 *!*	M = Memo
-*!*	N = Numeric
+*!*	N = Numeric											OK
 *!*	Q = Varbinary
 *!*	V = Varchar and Varchar (Binary)					OK
 *!*	W = Blob
@@ -120,6 +121,12 @@ PROCEDURE vytvor_tabulku
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " datetime NULL ," + CRLF 
 		CASE paPole[i,2] = 'L'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " bit NULL ," + CRLF 
+		CASE paPole[i,2] = 'B'
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " double NULL ," + CRLF 
+		CASE paPole[i,2] = 'F'
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " float NULL ," + CRLF 
+		CASE paPole[i,2] = 'Y'
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(20,4) NOT NULL default '0' ," + CRLF 
 		ENDCASE 
 	ENDFOR 
 	lcStr = LEFT(lcStr,LEN(lcStr)-3)
@@ -150,6 +157,12 @@ PROCEDURE zpracuj_zaznam
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		CASE paPole[i,2] = 'L'
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
+		CASE paPole[i,2] = 'B'
+			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
+		CASE paPole[i,2] = 'F'
+			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
+		CASE paPole[i,2] = 'Y'
+			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		ENDCASE 
 	ENDFOR 
 	lcRadek = 'INSERT INTO '+ ZPUV + (pcTab) + ZPUV + ' ( ' + lcSeznamPoli + ' )' + ' VALUES ( ' + lcSeznamHodnot + ' ) ' + CRLF
@@ -177,6 +190,13 @@ PROCEDURE zpracuj_field
 			TRANSFORM(HOUR(peValue)) + ':' + TRANSFORM(MINUTE(peValue)) + ':' + TRANSFORM(SEC(peValue)) + UV
 	CASE pcTyp = 'L'
 		pcValue = iif(peValue,'0b1','0b0')
+	CASE pcTyp = 'B'
+		pcValue = ALLTRIM(TRANSFORM(peValue))
+	CASE pcTyp = 'F'
+		pcValue = ALLTRIM(TRANSFORM(peValue))
+	CASE pcTyp = 'Y'
+		pcValue = ALLTRIM(TRANSFORM(peValue))
+		pcValue = RIGHT(pcValue,LEN(pcValue)-1)
 	ENDCASE
 	pcSeznamHodnot = pcSeznamHodnot + IIF(EMPTY(pcSeznamHodnot),pcValue,', '+pcValue)
 
