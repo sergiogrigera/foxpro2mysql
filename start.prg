@@ -118,6 +118,8 @@ PROCEDURE vytvor_tabulku
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " date NULL ," + CRLF 
 		CASE paPole[i,2] = 'T'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " datetime NULL ," + CRLF 
+		CASE paPole[i,2] = 'L'
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " bit NULL ," + CRLF 
 		ENDCASE 
 	ENDFOR 
 	lcStr = LEFT(lcStr,LEN(lcStr)-3)
@@ -146,6 +148,8 @@ PROCEDURE zpracuj_zaznam
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		CASE paPole[i,2] = 'T'
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
+		CASE paPole[i,2] = 'L'
+			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		ENDCASE 
 	ENDFOR 
 	lcRadek = 'INSERT INTO '+ ZPUV + (pcTab) + ZPUV + ' ( ' + lcSeznamPoli + ' )' + ' VALUES ( ' + lcSeznamHodnot + ' ) ' + CRLF
@@ -171,6 +175,8 @@ PROCEDURE zpracuj_field
 	CASE pcTyp = 'T'
 		pcValue = UV + TRANSFORM(year(peValue)) + '-' + TRANSFORM(MONTH(peValue)) + '-' + TRANSFORM(DAY(peValue)) + ' ' + ;
 			TRANSFORM(HOUR(peValue)) + ':' + TRANSFORM(MINUTE(peValue)) + ':' + TRANSFORM(SEC(peValue)) + UV
+	CASE pcTyp = 'L'
+		pcValue = iif(peValue,'0b1','0b0')
 	ENDCASE
 	pcSeznamHodnot = pcSeznamHodnot + IIF(EMPTY(pcSeznamHodnot),pcValue,', '+pcValue)
 
