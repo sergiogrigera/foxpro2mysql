@@ -87,7 +87,7 @@ PROCEDURE zpracuj_tab
 	lcTabString = vytvor_tabulku(pcTab, @aPole)
 	= FWRITE(liHa,lcTabString )
 	DO WHILE !EOF()
-		SCATTER NAME loZaznam
+		SCATTER NAME loZaznam MEMO 
 		lcRadek = zpracuj_zaznam(pcTab,@aPole,loZaznam)
 		= FWRITE(liHa,lcRadek )
 		SKIP +1
@@ -114,7 +114,7 @@ PROCEDURE vytvor_tabulku
 		CASE paPole[i,2] = 'V'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " varchar(" + TRANSFORM(paPole[i,3]) + ") NOT NULL default '' ," + CRLF 
 		CASE paPole[i,2] = 'N'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(" + TRANSFORM(paPole[i,3]) + "," + TRANSFORM(paPole[i,4]) + ") NOT NULL default '0' ," + CRLF 
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(" + TRANSFORM(paPole[i,3] + IIF(paPole[i,4] > 0,paPole[i,4] + 1,0)) + "," + TRANSFORM(paPole[i,4]) + ") NOT NULL default '0' ," + CRLF 
 		CASE paPole[i,2] = 'D'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " date NULL ," + CRLF 
 		CASE paPole[i,2] = 'T'
@@ -127,6 +127,8 @@ PROCEDURE vytvor_tabulku
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " float NULL ," + CRLF 
 		CASE paPole[i,2] = 'Y'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(20,4) NOT NULL default '0' ," + CRLF 
+		CASE paPole[i,2] = 'M'
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " text NULL ," + CRLF 
 		ENDCASE 
 	ENDFOR 
 	lcStr = LEFT(lcStr,LEN(lcStr)-3)
@@ -163,6 +165,8 @@ PROCEDURE zpracuj_zaznam
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		CASE paPole[i,2] = 'Y'
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
+		CASE paPole[i,2] = 'M'
+			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		ENDCASE 
 	ENDFOR 
 	lcRadek = 'INSERT INTO '+ ZPUV + (pcTab) + ZPUV + ' ( ' + lcSeznamPoli + ' )' + ' VALUES ( ' + lcSeznamHodnot + ' ) ;' + CRLF
@@ -178,9 +182,9 @@ PROCEDURE zpracuj_field
 	CASE pcTyp = 'I'
 		pcValue = ALLTRIM(TRANSFORM(peValue))
 	CASE pcTyp = 'C'
-		pcValue = UV + RTRIM(peValue) + UV
+		pcValue = UV + dej_string(RTRIM(peValue)) + UV
 	CASE pcTyp = 'V'
-		pcValue = UV + RTRIM(peValue) + UV
+		pcValue = UV + dej_string(RTRIM(peValue)) + UV
 	CASE pcTyp = 'N'
 		pcValue = ALLTRIM(TRANSFORM(peValue))
 	CASE pcTyp = 'D'
@@ -197,7 +201,16 @@ PROCEDURE zpracuj_field
 	CASE pcTyp = 'Y'
 		pcValue = ALLTRIM(TRANSFORM(peValue))
 		pcValue = RIGHT(pcValue,LEN(pcValue)-1)
+	CASE pcTyp = 'M'
+		pcValue = UV + dej_string(RTRIM(peValue)) + UV
 	ENDCASE
 	pcSeznamHodnot = pcSeznamHodnot + IIF(EMPTY(pcSeznamHodnot),pcValue,', '+pcValue)
-
 ENDPROC
+
+PROCEDURE dej_string
+&& =================
+	PARAMETERS pcString
+	LOCAL lcString
+	lcString = STRTRAN(pcString,"'","\'")
+	RETURN lcString
+ENDPROC 
