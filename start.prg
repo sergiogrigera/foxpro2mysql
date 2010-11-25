@@ -57,7 +57,7 @@ PROCEDURE zpracuj_tab
 *!*	T = DateTime										OK
 *!*	B = Double											OK
 *!*	F = Float											OK
-*!*	G = General											not possible
+*!*	G = General											Is not possible
 *!*	I = Integer											OK
 *!*	L = Logical											OK
 *!*	M = Memo
@@ -91,9 +91,9 @@ PROCEDURE zpracuj_tab
 		lcRadek = zpracuj_zaznam(pcTab,@aPole,loZaznam)
 		= FWRITE(liHa,lcRadek )
 		SKIP +1
-		IF RECNO() > 10
-			EXIT 
-		ENDIF 
+*!*			IF RECNO() > 10
+*!*				EXIT 
+*!*			ENDIF 
 	ENDDO 
 	USE IN (pcTab)
 ENDPROC
@@ -108,7 +108,7 @@ PROCEDURE vytvor_tabulku
 	FOR i = 1 to liPocet
 		DO CASE 
 		CASE paPole[i,2] = 'I'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " int(11) unsigned NOT NULL default '0' ," + CRLF 
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " int(11) NOT NULL default '0' ," + CRLF 
 		CASE paPole[i,2] = 'C'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " char(" + TRANSFORM(paPole[i,3]) + ") NOT NULL default '' ," + CRLF 
 		CASE paPole[i,2] = 'V'
@@ -165,7 +165,7 @@ PROCEDURE zpracuj_zaznam
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		ENDCASE 
 	ENDFOR 
-	lcRadek = 'INSERT INTO '+ ZPUV + (pcTab) + ZPUV + ' ( ' + lcSeznamPoli + ' )' + ' VALUES ( ' + lcSeznamHodnot + ' ) ' + CRLF
+	lcRadek = 'INSERT INTO '+ ZPUV + (pcTab) + ZPUV + ' ( ' + lcSeznamPoli + ' )' + ' VALUES ( ' + lcSeznamHodnot + ' ) ;' + CRLF
 	RETURN lcRadek 
 ENDPROC 
 
