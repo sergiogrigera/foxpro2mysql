@@ -4,6 +4,8 @@ SET TALK OFF
 && INIT
 &&
 
+#DEFINE DEBUG_RUN .t.
+
 SET CENTURY ON 
 SET CURRENCY TO 
 
@@ -60,7 +62,7 @@ PROCEDURE zpracuj_tab
 *!*	G = General											Is not possible
 *!*	I = Integer											OK
 *!*	L = Logical											OK
-*!*	M = Memo
+*!*	M = Memo											OK
 *!*	N = Numeric											OK
 *!*	Q = Varbinary
 *!*	V = Varchar and Varchar (Binary)					OK
@@ -91,9 +93,11 @@ PROCEDURE zpracuj_tab
 		lcRadek = zpracuj_zaznam(pcTab,@aPole,loZaznam)
 		= FWRITE(liHa,lcRadek )
 		SKIP +1
-*!*			IF RECNO() > 10
-*!*				EXIT 
-*!*			ENDIF 
+		IF DEBUG_RUN 
+			IF RECNO() > 10
+				EXIT 
+			ENDIF 
+		ENDIF 
 	ENDDO 
 	USE IN (pcTab)
 ENDPROC
@@ -114,7 +118,8 @@ PROCEDURE vytvor_tabulku
 		CASE paPole[i,2] = 'V'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " varchar(" + TRANSFORM(paPole[i,3]) + ") NOT NULL default '' ," + CRLF 
 		CASE paPole[i,2] = 'N'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(" + TRANSFORM(paPole[i,3] + IIF(paPole[i,4] > 0,paPole[i,4] + 1,0)) + "," + TRANSFORM(paPole[i,4]) + ") NOT NULL default '0' ," + CRLF 
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(" + TRANSFORM(paPole[i,3] + IIF(paPole[i,4] > 0,paPole[i,4] + 1,0)) + ;
+				"," + TRANSFORM(paPole[i,4]) + ") NOT NULL default '0' ," + CRLF
 		CASE paPole[i,2] = 'D'
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " date NULL ," + CRLF 
 		CASE paPole[i,2] = 'T'
@@ -133,7 +138,7 @@ PROCEDURE vytvor_tabulku
 	ENDFOR 
 	lcStr = LEFT(lcStr,LEN(lcStr)-3)
 	lcStr = lcStr + ')' + CRLF 
-	lcStr = lcStr + IND + 'ENGINE=MyISAM  DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF  + CRLF 
+	lcStr = lcStr + IND + 'ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF  + CRLF 
 	RETURN lcStr 
 ENDPROC
 
@@ -145,28 +150,10 @@ PROCEDURE zpracuj_zaznam
 	liPocet = ALEN(paPole,1)
 	FOR i = 1 to liPocet
 		DO CASE 
-		CASE paPole[i,2] = 'I'
+		CASE INLIST(paPole[i,2],'I','C','V','N','D','T','L','B','F','Y','M')
 			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'C'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'V'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'N'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'D'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'T'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'L'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'B'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'F'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'Y'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
-		CASE paPole[i,2] = 'M'
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
+		OTHERWISE 
+			&& do nothing
 		ENDCASE 
 	ENDFOR 
 	lcRadek = 'INSERT INTO '+ ZPUV + (pcTab) + ZPUV + ' ( ' + lcSeznamPoli + ' )' + ' VALUES ( ' + lcSeznamHodnot + ' ) ;' + CRLF
