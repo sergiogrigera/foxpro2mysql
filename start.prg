@@ -4,7 +4,7 @@ SET TALK OFF
 && INIT
 &&
 
-#DEFINE DEBUG_RUN .t.
+#DEFINE DEBUG_RUN .f.
 
 SET CENTURY ON 
 SET CURRENCY TO 
@@ -94,7 +94,7 @@ PROCEDURE zpracuj_tab
 		= FWRITE(liHa,lcRadek )
 		SKIP +1
 		IF DEBUG_RUN 
-			IF RECNO() > 10
+			IF RECNO() > 2
 				EXIT 
 			ENDIF 
 		ENDIF 
@@ -138,9 +138,36 @@ PROCEDURE vytvor_tabulku
 	ENDFOR 
 	lcStr = LEFT(lcStr,LEN(lcStr)-3)
 	lcStr = lcStr + ')' + CRLF 
-	lcStr = lcStr + IND + 'ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF  + CRLF 
+	lcStr = lcStr + IND + 'ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF
+	lcStr = lcStr + vytvor_indexy(pcTabName)
+	lcStr = lcStr + CRLF
 	RETURN lcStr 
 ENDPROC
+
+PROCEDURE vytvor_indexy
+&& ====================
+	PARAMETERS pcTabName
+	LOCAL nCount , lcTagName , lcTagExpr , lcExpr , lcTag, lcCommands
+	lcCommands = ''
+	FOR nCount = 1 TO TAGCOUNT( )
+	   IF !EMPTY(TAG(nCount))  			&& Checks for tags in the index
+	   		lcTagName = TAG(nCount)     && Display structural index names
+	   		lcTagExpr = KEY(nCount)
+	   		lcExpr = ''
+	   		IF !('('$lcTagExpr .or. '+'$lcTagExpr .or. '!'$lcTagExpr .or. '-'$lcTagExpr)
+	   			lcExpr = LOWER(lcTagExpr )
+	   			lcTag = 'idx_' + lcExpr 
+	   			IF !lcTag$lcCommands 
+	   				lcCommands = lcCommands + "ALTER TABLE " + ZPUV + pcTabName + ZPUV + ;
+	   					" ADD INDEX " + ZPUV + lcTag + ZPUV + " (" + ZPUV + lcExpr + ZPUV + ");" + CRLF 
+	   			ENDIF 
+	   		ENDIF 
+*!*		   ELSE
+*!*		      EXIT  					&& Exit the loop when no more tags are found
+	   ENDIF
+	ENDFOR
+	RETURN lcCommands 
+ENDPROC 
 
 PROCEDURE zpracuj_zaznam
 && =====================
