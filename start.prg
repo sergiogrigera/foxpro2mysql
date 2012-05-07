@@ -194,13 +194,13 @@ PROCEDURE zpracuj_field
 	pcSeznamPoli = pcSeznamPoli + IIF(EMPTY(pcSeznamPoli), ZPUV + pcJmeno + ZPUV, ', ' + ZPUV + pcJmeno + ZPUV)
 	DO CASE 
 	CASE pcTyp = 'I'
-		pcValue = ALLTRIM(TRANSFORM(peValue))
+		pcValue = dej_cislo(peValue )
 	CASE pcTyp = 'C'
 		pcValue = UV + dej_string(RTRIM(peValue)) + UV
 	CASE pcTyp = 'V'
 		pcValue = UV + dej_string(RTRIM(peValue)) + UV
 	CASE pcTyp = 'N'
-		pcValue = ALLTRIM(TRANSFORM(peValue))
+		pcValue = dej_cislo(peValue )
 	CASE pcTyp = 'D'
 		pcValue = UV + TRANSFORM(year(peValue)) + '-' + TRANSFORM(MONTH(peValue)) + '-' + TRANSFORM(DAY(peValue)) + UV
 	CASE pcTyp = 'T'
@@ -209,11 +209,11 @@ PROCEDURE zpracuj_field
 	CASE pcTyp = 'L'
 		pcValue = iif(peValue,'0b1','0b0')
 	CASE pcTyp = 'B'
-		pcValue = ALLTRIM(TRANSFORM(peValue))
+		pcValue = dej_cislo(peValue )
 	CASE pcTyp = 'F'
-		pcValue = ALLTRIM(TRANSFORM(peValue))
+		pcValue = dej_cislo(peValue )
 	CASE pcTyp = 'Y'
-		pcValue = ALLTRIM(TRANSFORM(peValue))
+		pcValue = dej_cislo(peValue )
 		pcValue = RIGHT(pcValue,LEN(pcValue)-1)
 	CASE pcTyp = 'M'
 		pcValue = UV + dej_string(RTRIM(peValue)) + UV
@@ -226,5 +226,19 @@ PROCEDURE dej_string
 	PARAMETERS pcString
 	LOCAL lcString
 	lcString = STRTRAN(pcString,"'","\'")
+	lcString = STRTRAN(pcString,'"','\"')
+	lcString = STRTRAN(pcString,CHR(13),"\r")
+	lcString = STRTRAN(pcString,CHR(10),"\n")
+	lcString = STRTRAN(pcString,CHR(0),"\0")
+	lcString = STRTRAN(pcString,"\","\\")
+	RETURN lcString
+ENDPROC 
+
+PROCEDURE dej_cislo
+&& =================
+	PARAMETERS pnNumber
+	LOCAL lcString
+	lcString = ALLTRIM(TRANSFORM(pnNumber))
+	lcString = IIF('*'$lcString , '0', lcString )
 	RETURN lcString
 ENDPROC 
