@@ -136,10 +136,13 @@ PROCEDURE vytvor_tabulku
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " text NULL ," + CRLF 
 		ENDCASE 
 	ENDFOR 
-	lcStr = LEFT(lcStr,LEN(lcStr)-3)
-	lcStr = lcStr + ')' + CRLF 
-	lcStr = lcStr + IND + 'ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF
-	lcStr = lcStr + vytvor_indexy(pcTabName)
+	lcStrIndexes = vytvor_indexy(pcTabName)
+	IF EMPTY(lcStrIndexes )
+		lcStr = LEFT(lcStr,LEN(lcStr)-3) + CRLF 
+	ELSE 
+		lcStr = lcStr + lcStrIndexes 
+	ENDIF 
+	lcStr = lcStr + IND + ') ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF
 	lcStr = lcStr + CRLF
 	RETURN lcStr 
 ENDPROC
@@ -149,7 +152,6 @@ PROCEDURE vytvor_indexy
 	PARAMETERS pcTabName
 	LOCAL nCount , lcTagName , lcTagExpr , lcExpr , lcTag, lcCommands, lcIndexType , liIndexCount 
 	lcCommands = ''
-	lcCommands = "ALTER TABLE" + ZPUV + pcTabName + ZPUV + CRLF 
 	liIndexCount = 0
 	FOR nCount = 1 TO TAGCOUNT( )
 	   IF !EMPTY(TAG(nCount))  			&& Checks for tags in the index
@@ -161,17 +163,16 @@ PROCEDURE vytvor_indexy
 	   			lcIndexType = IIF(PRIMARY(nCount), 'PRIMARY KEY', 'INDEX')
 	   			lcTag = IIF(PRIMARY(nCount), 'pk_' + lcExpr, 'idx_' + lcExpr )
 	   			IF !lcTag$lcCommands 
-	   				lcCommands = lcCommands + IIF(liIndexCount > 0, ',' + CRLF , '') + ;
-	   					" ADD " + lcIndexType + " " + ZPUV + lcTag + ZPUV + " (" + ZPUV + lcExpr + ZPUV + ")"
+	   				lcCommands = lcCommands + ;
+	   					IIF(liIndexCount > 0, ',' + CRLF , '') + ;
+	   					IND + lcIndexType + " " + ZPUV + lcTag + ZPUV + " (" + ZPUV + lcExpr + ZPUV + ")"
 			   		liIndexCount = liIndexCount + 1
 	   			ENDIF 
 	   		ENDIF 
 	   ENDIF
 	ENDFOR
-	IF liIndexCount = 0
-		lcCommands = ''
-	ELSE 
-		lcCommands = lcCommands + ";" + CRLF
+	IF liIndexCount > 0
+		lcCommands = lcCommands + CRLF
 	ENDIF 
 	RETURN lcCommands 
 ENDPROC 
