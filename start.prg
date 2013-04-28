@@ -147,8 +147,10 @@ ENDPROC
 PROCEDURE vytvor_indexy
 && ====================
 	PARAMETERS pcTabName
-	LOCAL nCount , lcTagName , lcTagExpr , lcExpr , lcTag, lcCommands
+	LOCAL nCount , lcTagName , lcTagExpr , lcExpr , lcTag, lcCommands, lcIndexType , liIndexCount 
 	lcCommands = ''
+	lcCommands = "ALTER TABLE" + ZPUV + pcTabName + ZPUV + CRLF 
+	liIndexCount = 0
 	FOR nCount = 1 TO TAGCOUNT( )
 	   IF !EMPTY(TAG(nCount))  			&& Checks for tags in the index
 	   		lcTagName = TAG(nCount)     && Display structural index names
@@ -156,16 +158,21 @@ PROCEDURE vytvor_indexy
 	   		lcExpr = ''
 	   		IF !('('$lcTagExpr .or. '+'$lcTagExpr .or. '!'$lcTagExpr .or. '-'$lcTagExpr)
 	   			lcExpr = LOWER(lcTagExpr )
-	   			lcTag = 'idx_' + lcExpr 
+	   			lcIndexType = IIF(PRIMARY(nCount), 'PRIMARY KEY', 'INDEX')
+	   			lcTag = IIF(PRIMARY(nCount), 'pk_' + lcExpr, 'idx_' + lcExpr )
 	   			IF !lcTag$lcCommands 
-	   				lcCommands = lcCommands + "ALTER TABLE " + ZPUV + pcTabName + ZPUV + ;
-	   					" ADD INDEX " + ZPUV + lcTag + ZPUV + " (" + ZPUV + lcExpr + ZPUV + ");" + CRLF 
+	   				lcCommands = lcCommands + IIF(liIndexCount > 0, ',' + CRLF , '') + ;
+	   					" ADD " + lcIndexType + " " + ZPUV + lcTag + ZPUV + " (" + ZPUV + lcExpr + ZPUV + ")"
+			   		liIndexCount = liIndexCount + 1
 	   			ENDIF 
 	   		ENDIF 
-*!*		   ELSE
-*!*		      EXIT  					&& Exit the loop when no more tags are found
 	   ENDIF
 	ENDFOR
+	IF liIndexCount = 0
+		lcCommands = ''
+	ELSE 
+		lcCommands = lcCommands + ";" + CRLF
+	ENDIF 
 	RETURN lcCommands 
 ENDPROC 
 
