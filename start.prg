@@ -142,7 +142,7 @@ PROCEDURE vytvor_tabulku
 	ELSE 
 		lcStr = lcStr + lcStrIndexes 
 	ENDIF 
-	lcStr = lcStr + IND + ') ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF
+	lcStr = lcStr + IND + ') ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DEFAULT;' + CRLF
 	lcStr = lcStr + CRLF
 	RETURN lcStr 
 ENDPROC
