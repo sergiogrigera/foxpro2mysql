@@ -29,7 +29,7 @@ PROCEDURE zpracuj_dbc
 	LOCAL i,liPocet ,lcSql
 	PUBLIC liHA
 	CLOSE DATABASES all
-	lcSql = ADDBS(JUSTPATH(pcDBC))+'sql_dump_'+JUSTSTEM(pcDBC)+sys[2015]+'.sql'
+	lcSql = ADDBS(JUSTPATH(SYS(16,0)))+'sql_dump_'+JUSTSTEM(pcDBC)+sys[2015]+'.sql'
 	liHa = FCREATE(lcSql )
 	OPEN DATABASE (pcDBC) EXCLUSIVE 
 	liPocet = ADBOBJECTS(atable,"TABLE")
@@ -69,7 +69,7 @@ PROCEDURE zpracuj_tab
 *!*	W = Blob
 *!*	3 Field width
 *!*	4 Decimal places
-*!*	5 Null values allowed - Logical
+*!*	5 Null values allowed - Logical						OK
 *!*	6 Code page translation not allowed - Logical
 *!*	7 Field validation expression - Character
 *!*	8 Field validation text - Character
@@ -105,35 +105,67 @@ ENDPROC
 PROCEDURE vytvor_tabulku
 && =====================
 	PARAMETERS pcTabName, paPole
-	LOCAL liPocet , i, lcStr
+	LOCAL liPocet , i, lcStr, lcNULL , lcDefault 
 	liPocet = ALEN(paPole,1)
 	lcStr = 'DROP TABLE IF EXISTS ' + ZPUV + pcTabName + ZPUV + ';' + CRLF 
 	lcStr = lcStr + 'CREATE TABLE ' + ZPUV + pcTabName + ZPUV + ' ( ' + CRLF 
 	FOR i = 1 to liPocet
+		lcNULL = IIF(paPole[i,5], ' NULL ', ' NOT NULL ')
 		DO CASE 
 		CASE paPole[i,2] = 'I'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " int(11) NOT NULL default '0' ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault + '"', ' DEFAULT 0 ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " int(11) " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'C'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " char(" + TRANSFORM(paPole[i,3]) + ") NOT NULL default '' ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT "" ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " char(" + TRANSFORM(paPole[i,3]) + ") " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'V'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " varchar(" + TRANSFORM(paPole[i,3]) + ") NOT NULL default '' ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT "" ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " varchar(" + TRANSFORM(paPole[i,3]) + ") " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'N'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(" + TRANSFORM(paPole[i,3] + IIF(paPole[i,4] > 0,paPole[i,4] + 1,0)) + ;
-				"," + TRANSFORM(paPole[i,4]) + ") NOT NULL default '0' ," + CRLF
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT 0 ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + ;
+				" decimal(" + TRANSFORM(paPole[i,3] + IIF(paPole[i,4] > 0,paPole[i,4] + 1,0)) + ;
+				"," + TRANSFORM(paPole[i,4]) + ") " + lcNULL + lcDefault + "," + CRLF
 		CASE paPole[i,2] = 'D'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " date NULL ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT "0000-00-00" ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " date " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'T'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " datetime NULL ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT "0000-00-00 00:00:00" ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " datetime " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'L'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " bit NULL ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT TRUE ', ' DEFAULT FALSE ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " boolean " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'B'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " double NULL ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT 0 ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " double " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'F'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " float NULL ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT 0 ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " float " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'Y'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(20,4) NOT NULL default '0' ," + CRLF 
+			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
+				SUBSTR(paPole[i,9], 2, LEN(paPole[i,9]) - 2), paPole[i,9])
+			lcDefault = IIF(!EMPTY(lcDefault ), ' DEFAULT ' + '"' + lcDefault  + '"', ' DEFAULT 0 ')
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " decimal(20,4) " + lcNULL + lcDefault + "," + CRLF 
 		CASE paPole[i,2] = 'M'
-			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " text NULL ," + CRLF 
+			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " text " + " NULL " + "," + CRLF 
 		ENDCASE 
 	ENDFOR 
 	lcStrIndexes = vytvor_indexy(pcTabName)
@@ -142,7 +174,7 @@ PROCEDURE vytvor_tabulku
 	ELSE 
 		lcStr = lcStr + lcStrIndexes 
 	ENDIF 
-	lcStr = lcStr + IND + ') ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DYNAMIC;' + CRLF
+	lcStr = lcStr + IND + ') ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DEFAULT;' + CRLF
 	lcStr = lcStr + CRLF
 	RETURN lcStr 
 ENDPROC
