@@ -5,6 +5,7 @@ SET TALK OFF
 &&
 
 #DEFINE DEBUG_RUN .f.
+#DEFINE ONLY_STRUCTURE .t.
 
 SET CENTURY ON 
 SET CURRENCY TO 
@@ -88,17 +89,19 @@ PROCEDURE zpracuj_tab
 &&
 	lcTabString = vytvor_tabulku(pcTab, @aPole)
 	= FWRITE(liHa,lcTabString )
-	DO WHILE !EOF()
-		SCATTER NAME loZaznam MEMO 
-		lcRadek = zpracuj_zaznam(pcTab,@aPole,loZaznam)
-		= FWRITE(liHa,lcRadek )
-		SKIP +1
-		IF DEBUG_RUN 
-			IF RECNO() > 2
-				EXIT 
+	IF !ONLY_STRUCTURE 
+		DO WHILE !EOF()
+			SCATTER NAME loZaznam MEMO 
+			lcRadek = zpracuj_zaznam(pcTab,@aPole,loZaznam)
+			= FWRITE(liHa,lcRadek )
+			SKIP +1
+			IF DEBUG_RUN 
+				IF RECNO() > 2
+					EXIT 
+				ENDIF 
 			ENDIF 
-		ENDIF 
-	ENDDO 
+		ENDDO 
+	ENDIF 
 	USE IN (pcTab)
 ENDPROC
 
@@ -174,7 +177,7 @@ PROCEDURE vytvor_tabulku
 	ELSE 
 		lcStr = lcStr + lcStrIndexes 
 	ENDIF 
-	lcStr = lcStr + IND + ') ENGINE=INNODB DEFAULT CHARSET=utf8 ROW_FORMAT=DEFAULT;' + CRLF
+	lcStr = lcStr + IND + ') ENGINE=INNODB DEFAULT CHARSET=cp1250 ROW_FORMAT=DEFAULT;' + CRLF
 	lcStr = lcStr + CRLF
 	RETURN lcStr 
 ENDPROC
