@@ -49,6 +49,7 @@ PROCEDURE zpracuj_tab
 	USE (pcTab) IN 0 EXCLUSIVE 
 	SELECT (pcTab)
 	liPocet = AFIELDS(aPole)
+	liCodePage = CPDBF()
 &&
 &&
 &&
@@ -87,7 +88,7 @@ PROCEDURE zpracuj_tab
 &&
 &&
 &&
-	lcTabString = vytvor_tabulku(pcTab, @aPole)
+	lcTabString = vytvor_tabulku(pcTab, liCodePage , @aPole)
 	= FWRITE(liHa,lcTabString )
 	IF !ONLY_STRUCTURE 
 		DO WHILE !EOF()
@@ -107,16 +108,19 @@ ENDPROC
 
 PROCEDURE vytvor_tabulku
 && =====================
-	PARAMETERS pcTabName, paPole
-	LOCAL liPocet , i, lcStr, lcNULL , lcDefault , lcComment , lcCmnt 
+	PARAMETERS pcTabName, piCodePage , paPole
+	LOCAL liPocet , i, lcStr, lcNULL , lcDefault , lcComment , lcCmnt , lcCodePage
 	liPocet = ALEN(paPole,1)
 	lcStr = 'DROP TABLE IF EXISTS ' + ZPUV + pcTabName + ZPUV + ';' + CRLF 
 	lcStr = lcStr + 'CREATE TABLE ' + ZPUV + pcTabName + ZPUV + ' ( ' + CRLF 
 	lcTCmnt = DBGetProp(pcTabName, "Table", "Comment")
+	lcTCmnt = STRTRAN(lcTCmnt , "\", "\\")
 	lcTComment = IIF(!EMPTY(lcTCmnt ), " COMMENT '" + STRTRAN(lcTCmnt , "'", "\'") + "' ", '')
+	lcCodePage =  ' CHARSET=cp' + ALLTRIM(TRANSFORM(piCodePage )) + ' '
 	FOR i = 1 to liPocet
 		lcNULL = IIF(paPole[i,5], ' NULL ', ' NOT NULL ')
 		lcCmnt = DBGetProp(pcTabName + '.' + paPole[i,1], "Field", "Comment")
+		lcCmnt = STRTRAN(lcCmnt , "\", "\\")
 		lcComment = IIF(!EMPTY(lcCmnt ), " COMMENT '" + STRTRAN(lcCmnt , "'", "\'") + "' ", '')
 		DO CASE 
 		CASE paPole[i,2] = 'I'
@@ -181,7 +185,7 @@ PROCEDURE vytvor_tabulku
 	ELSE 
 		lcStr = lcStr + lcStrIndexes 
 	ENDIF 
-	lcStr = lcStr + IND + ') ' + lcTComment + ' ENGINE=INNODB DEFAULT CHARSET=cp1250 ROW_FORMAT=DEFAULT;' + CRLF
+	lcStr = lcStr + IND + ') ' + lcTComment + ' ENGINE=INNODB DEFAULT ' + lcCodePage + ' ROW_FORMAT=DEFAULT;' + CRLF
 	lcStr = lcStr + CRLF
 	RETURN lcStr 
 ENDPROC
