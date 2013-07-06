@@ -1,9 +1,5 @@
 SET TALK OFF
 
-&&
-&& INIT
-&&
-
 #DEFINE DEBUG_RUN .f.
 #DEFINE ONLY_STRUCTURE .t.
 
@@ -18,13 +14,13 @@ SET CURRENCY TO
 LOCAL lcDbc 
 lcDbc = GETFILE('dbc')
 IF !empty(lcDbc )
-	= zpracuj_dbc(lcDbc )
+	= build_database(lcDbc )
 ENDIF
 
 SET TALK ON
 RETURN
 
-PROCEDURE zpracuj_dbc
+PROCEDURE build_database
 && =====================
 	PARAMETERS pcDBC
 	LOCAL i,liPocet ,lcSql
@@ -34,15 +30,30 @@ PROCEDURE zpracuj_dbc
 	liHa = FCREATE(lcSql )
 	OPEN DATABASE (pcDBC) EXCLUSIVE 
 	liPocet = ADBOBJECTS(atable,"TABLE")
+	= ASORT(atable)
 	FOR i = 1 TO liPocet 
-		= zpracuj_tab(atable[i])
+		= build_table(atable[i])
 		= FWRITE(liHa,CRLF)
 	ENDFOR 
+	FOR i = 1 TO liPocet 
+		= build_constraint(atable[i])
+	ENDFOR 
 	= FCLOSE(liHa)
+	RELEASE liHA
 	CLOSE DATABASES all
 ENDPROC
 
-PROCEDURE zpracuj_tab
+PROCEDURE build_constraint
+&& =======================
+	PARAMETERS pcTab
+	LOCAL lcTabString 
+	lcTabString = create_foreignkeys(pcTab)
+	IF !EMPTY(lcTabString )
+		= FWRITE(liHa,lcTabString )
+	ENDIF 
+ENDPROC 
+
+PROCEDURE build_table
 && ==================
 	PARAMETERS pcTab
 	LOCAL i,liPocet ,loZaznam,lcRadek , lcTabString 
@@ -88,12 +99,12 @@ PROCEDURE zpracuj_tab
 &&
 &&
 &&
-	lcTabString = vytvor_tabulku(pcTab, liCodePage , @aPole)
+	lcTabString = create_table(pcTab, liCodePage , @aPole)
 	= FWRITE(liHa,lcTabString )
 	IF !ONLY_STRUCTURE 
 		DO WHILE !EOF()
 			SCATTER NAME loZaznam MEMO 
-			lcRadek = zpracuj_zaznam(pcTab,@aPole,loZaznam)
+			lcRadek = insert_record(pcTab,@aPole,loZaznam)
 			= FWRITE(liHa,lcRadek )
 			SKIP +1
 			IF DEBUG_RUN 
@@ -106,22 +117,20 @@ PROCEDURE zpracuj_tab
 	USE IN (pcTab)
 ENDPROC
 
-PROCEDURE vytvor_tabulku
-&& =====================
+PROCEDURE create_table
+&& ===================
 	PARAMETERS pcTabName, piCodePage , paPole
-	LOCAL liPocet , i, lcStr, lcNULL , lcDefault , lcComment , lcCmnt , lcCodePage
+	LOCAL liPocet , i, lcStr, lcNULL , lcDefault , lcComment , lcCmnt , lcCodePage, lcStrForeignKeys , lcStrIndexes 
 	liPocet = ALEN(paPole,1)
 	lcStr = 'DROP TABLE IF EXISTS ' + ZPUV + pcTabName + ZPUV + ';' + CRLF 
 	lcStr = lcStr + 'CREATE TABLE ' + ZPUV + pcTabName + ZPUV + ' ( ' + CRLF 
 	lcTCmnt = DBGetProp(pcTabName, "Table", "Comment")
-	lcTCmnt = STRTRAN(lcTCmnt , "\", "\\")
-	lcTComment = IIF(!EMPTY(lcTCmnt ), " COMMENT '" + STRTRAN(lcTCmnt , "'", "\'") + "' ", '')
+	lcTComment = IIF(!EMPTY(lcTCmnt ), " COMMENT '" + dej_string(lcTCmnt) + "' ", '')
 	lcCodePage =  ' CHARSET=cp' + ALLTRIM(TRANSFORM(piCodePage )) + ' '
 	FOR i = 1 to liPocet
 		lcNULL = IIF(paPole[i,5], ' NULL ', ' NOT NULL ')
 		lcCmnt = DBGetProp(pcTabName + '.' + paPole[i,1], "Field", "Comment")
-		lcCmnt = STRTRAN(lcCmnt , "\", "\\")
-		lcComment = IIF(!EMPTY(lcCmnt ), " COMMENT '" + STRTRAN(lcCmnt , "'", "\'") + "' ", '')
+		lcComment = IIF(!EMPTY(lcCmnt ), " COMMENT '" + dej_string(lcCmnt) + "' ", '')
 		DO CASE 
 		CASE paPole[i,2] = 'I'
 			lcDefault = IIF(INLIST(LEFT(paPole[i,9],1),['],["]) .and. INLIST(RIGHT(paPole[i,9],1),['],["]), ;
@@ -179,19 +188,22 @@ PROCEDURE vytvor_tabulku
 			lcStr = lcStr + IND + ZPUV + paPole[i,1] + ZPUV + " text " + " NULL " + lcComment + "," + CRLF 
 		ENDCASE 
 	ENDFOR 
-	lcStrIndexes = vytvor_indexy(pcTabName)
-	IF EMPTY(lcStrIndexes )
-		lcStr = LEFT(lcStr,LEN(lcStr)-3) + CRLF 
-	ELSE 
+	lcStrIndexes = create_indexes(pcTabName)
+	IF !EMPTY(lcStrIndexes )
 		lcStr = lcStr + lcStrIndexes 
 	ENDIF 
+*!*		lcStrForeignKeys = create_foreignkeys(pcTabName)
+*!*		IF !EMPTY(lcStrForeignKeys )
+*!*			lcStr = lcStr + lcStrForeignKeys 
+*!*		ENDIF 
+	lcStr = LEFT(lcStr,LEN(lcStr)-3) + CRLF 		&& strip ",CRLF"
 	lcStr = lcStr + IND + ') ' + lcTComment + ' ENGINE=INNODB DEFAULT ' + lcCodePage + ' ROW_FORMAT=DEFAULT;' + CRLF
 	lcStr = lcStr + CRLF
 	RETURN lcStr 
 ENDPROC
 
-PROCEDURE vytvor_indexy
-&& ====================
+PROCEDURE create_indexes
+&& =====================
 	PARAMETERS pcTabName
 	LOCAL nCount , lcTagName , lcTagExpr , lcExpr , lcTag, lcCommands, lcIndexType , liIndexCount 
 	lcCommands = ''
@@ -207,21 +219,43 @@ PROCEDURE vytvor_indexy
 	   			lcTag = IIF(PRIMARY(nCount), 'pk_' + lcExpr, 'idx_' + lcExpr )
 	   			IF !lcTag$lcCommands 
 	   				lcCommands = lcCommands + ;
-	   					IIF(liIndexCount > 0, ',' + CRLF , '') + ;
-	   					IND + lcIndexType + " " + ZPUV + lcTag + ZPUV + " (" + ZPUV + lcExpr + ZPUV + ")"
+	   					IND + lcIndexType + " " + ZPUV + lcTag + ZPUV + " (" + ZPUV + lcExpr + ZPUV + ")" + ',' + CRLF
 			   		liIndexCount = liIndexCount + 1
 	   			ENDIF 
 	   		ENDIF 
 	   ENDIF
 	ENDFOR
-	IF liIndexCount > 0
-		lcCommands = lcCommands + CRLF
-	ENDIF 
 	RETURN lcCommands 
 ENDPROC 
 
-PROCEDURE zpracuj_zaznam
-&& =====================
+PROCEDURE create_foreignkeys
+&& =========================
+	PARAMETERS pcTabName
+	LOCAL lcRetStr, liCnt, liFKCount
+	lcRetStr = ''
+	liFKCount = 0
+	liCnt = ADBOBJECTS(laRelations,"RELATION")
+	FOR i = 1 TO liCnt 
+		IF laRelations[i,1] == pcTabName
+			lcChildTable = laRelations[i,1]
+			lcParentTable = laRelations[i,2]
+			lcChildKey = laRelations[i,3]
+			lcParentKey = laRelations[i,4]
+			lcRefIntInfo = RTRIM(laRelations[i,5])
+			lcRetStr = lcRetStr + ;
+				'FOREIGN KEY (`' + lcChildKey + '`) REFERENCES `' + lcParentTable + '` (`' + lcParentKey + '`)' + ',' + CRLF
+			liFKCount = liFKCount + 1
+		ENDIF 
+	ENDFOR 
+	IF liFKCount > 0
+		lcRetStr = 'ALTER TABLE ' + ZPUV + (pcTabName) + ZPUV + ' ' + CRLF + IND + "ADD " + lcRetStr 
+		lcRetStr = LEFT(lcRetStr ,LEN(lcRetStr )-3) + ';' + CRLF 		&& strip ",CRLF"
+	ENDIF 
+	RETURN lcRetStr
+ENDPROC 
+
+PROCEDURE insert_record
+&& ====================
 	PARAMETERS pcTab,paPole,poZaznam
 	LOCAL liPocet ,i,lcSeznamPoli,lcSeznamHodnot,lcRadek 
 	STORE '' TO lcSeznamPoli,lcSeznamHodnot
@@ -229,7 +263,7 @@ PROCEDURE zpracuj_zaznam
 	FOR i = 1 to liPocet
 		DO CASE 
 		CASE INLIST(paPole[i,2],'I','C','V','N','D','T','L','B','F','Y','M')
-			= zpracuj_field(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
+			= build_fields(paPole[i,1],paPole[i,2],EVALUATE('pozaznam.'+paPole[i,1]),@lcSeznamPoli,@lcSeznamHodnot)
 		OTHERWISE 
 			&& do nothing
 		ENDCASE 
@@ -238,8 +272,8 @@ PROCEDURE zpracuj_zaznam
 	RETURN lcRadek 
 ENDPROC 
 
-PROCEDURE zpracuj_field
-&& ====================
+PROCEDURE build_fields
+&& ===================
 	PARAMETERS pcJmeno,pcTyp,peValue,pcSeznamPoli,pcSeznamHodnot
 
 	pcSeznamPoli = pcSeznamPoli + IIF(EMPTY(pcSeznamPoli), ZPUV + pcJmeno + ZPUV, ', ' + ZPUV + pcJmeno + ZPUV)
@@ -276,17 +310,17 @@ PROCEDURE dej_string
 && =================
 	PARAMETERS pcString
 	LOCAL lcString
-	lcString = STRTRAN(pcString,"'","\'")
-	lcString = STRTRAN(pcString,'"','\"')
-	lcString = STRTRAN(pcString,CHR(13),"\r")
-	lcString = STRTRAN(pcString,CHR(10),"\n")
-	lcString = STRTRAN(pcString,CHR(0),"\0")
 	lcString = STRTRAN(pcString,"\","\\")
+	lcString = STRTRAN(lcString ,"'","\'")
+	lcString = STRTRAN(lcString ,'"','\"')
+	lcString = STRTRAN(lcString ,CHR(13),"\r")
+	lcString = STRTRAN(lcString ,CHR(10),"\n")
+	lcString = STRTRAN(lcString ,CHR(0),"\0")
 	RETURN lcString
 ENDPROC 
 
 PROCEDURE dej_cislo
-&& =================
+&& ================
 	PARAMETERS pnNumber
 	LOCAL lcString
 	lcString = ALLTRIM(TRANSFORM(pnNumber))
