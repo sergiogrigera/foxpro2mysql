@@ -2,3 +2,4 @@ syntax: glob
 start.BAK
 start.FXP
 *.FXP
+*.bak
